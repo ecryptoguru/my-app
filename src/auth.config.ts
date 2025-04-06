@@ -1,4 +1,4 @@
-import type { NextAuthConfig } from 'next-auth';
+import type { NextAuthOptions } from "next-auth";
 
 // Extend the session type to include user ID
 declare module 'next-auth' {
@@ -20,7 +20,7 @@ declare module 'next-auth' {
   }
 }
 
-export const authConfig: NextAuthConfig = {
+export const authConfig: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
     signOut: '/auth/signout',
@@ -29,19 +29,6 @@ export const authConfig: NextAuthConfig = {
     newUser: '/auth/new-user',
   },
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnProtectedRoute = nextUrl.pathname.startsWith('/dashboard');
-      const isOnUploadRoute = nextUrl.pathname.startsWith('/upload-demo');
-      
-      // If the user is trying to access a protected route, check if they're logged in
-      if (isOnProtectedRoute || isOnUploadRoute) {
-        if (isLoggedIn) return true;
-        return false; // Redirect to login page
-      }
-      
-      return true; // Allow access to public routes
-    },
     jwt({ token, user }) {
       // Initial sign in
       if (user) {
@@ -64,4 +51,4 @@ export const authConfig: NextAuthConfig = {
     strategy: 'jwt',
   },
   debug: process.env.NODE_ENV === 'development',
-};
+}
