@@ -1,4 +1,7 @@
+import { Button } from "@/components/ui/button";
+import { Play, FileUp } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -12,6 +15,22 @@ export default function Home() {
           height={38}
           priority
         />
+        
+        {/* Added Shadcn UI Button with Lucide Icon */}
+        <div className="flex flex-col items-center gap-4 w-full">
+          <h2 className="text-2xl font-bold">Business Assistant</h2>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button className="text-lg">
+              <Play className="mr-2 h-5 w-5" /> Start
+            </Button>
+            <Link href="/upload-demo">
+              <Button variant="outline" className="text-lg">
+                <FileUp className="mr-2 h-5 w-5" /> File Upload Demo
+              </Button>
+            </Link>
+          </div>
+        </div>
+
         <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
           <li className="mb-2 tracking-[-.01em]">
             Get started by editing{" "}
