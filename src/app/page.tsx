@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Play, FileUp } from "lucide-react";
+import { Play, FileUp, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -26,6 +26,11 @@ export default function Home() {
             <Link href="/upload-demo">
               <Button variant="outline" className="text-lg">
                 <FileUp className="mr-2 h-5 w-5" /> File Upload Demo
+              </Button>
+            </Link>
+            <Link href="/ai-demo">
+              <Button variant="outline" className="text-lg">
+                <Sparkles className="mr-2 h-5 w-5" /> AI Features Demo
               </Button>
             </Link>
           </div>
