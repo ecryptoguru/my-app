@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge"; // Ensuring the Badge import is correctly formatted
+import { Badge } from "@/components/ui/badge"; 
 import { AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 
 // Define types for our data
@@ -33,9 +33,20 @@ interface InventoryRecommendation {
   status: 'OK' | 'Low' | 'Critical';
 }
 
+interface DataState {
+  input: InventoryItem[] | null;
+  mapped: MappedData | null;
+  result: InventoryRecommendation[] | null;
+}
+
 export default function InventoryManagement() {
   const { status } = useSession();
   const router = useRouter();
+  const [data, setData] = useState<DataState>({
+    input: null,
+    mapped: null,
+    result: null,
+  });
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -53,8 +64,16 @@ export default function InventoryManagement() {
     );
   }
 
+  const handleFileProcessed = (inputData: InventoryItem[]) => {
+    setData(prev => ({ ...prev, input: inputData }));
+  };
+
+  const handleDataMapped = (mappedData: MappedData) => {
+    setData(prev => ({ ...prev, mapped: mappedData }));
+  };
+
   // Custom input component for manual data entry
-  const InputSection = ({ onFileProcessed }: { onFileProcessed: (data: unknown, url: string) => void }) => {
+  const InputSection = ({ onFileProcessed }: { onFileProcessed: (data: InventoryItem[]) => void }) => {
     const [items, setItems] = useState<InventoryItem[]>([
       { productId: 'P001', currentStock: 100 },
       { productId: 'P002', currentStock: 50 },
@@ -75,7 +94,7 @@ export default function InventoryManagement() {
     };
 
     const handleSubmit = () => {
-      onFileProcessed(items, '');
+      onFileProcessed(items);
     };
 
     return (
@@ -132,7 +151,7 @@ export default function InventoryManagement() {
   };
 
   // Custom mapping component for inventory management
-  const MappingSection = ({ data, onMapped }: { data: unknown, onMapped: (data: MappedData) => void }) => {
+  const MappingSection = ({ data, onMapped }: { data: InventoryItem[] | null, onMapped: (data: MappedData) => void }) => {
     const [leadTime, setLeadTime] = useState(7);
     const [safetyFactor, setSafetyFactor] = useState(1.5);
     
@@ -261,7 +280,7 @@ export default function InventoryManagement() {
                 Total current stock value: {result.reduce((sum, item) => sum + item.currentStock, 0)}
               </p>
               <p className="text-sm text-muted-foreground">
-                Total optimal stock value: {result.reduce((sum, item) => sum + item.optimalStock, 0)}
+                Total optimal stock value: {result.reduce((sum, item) => sum + Math.round(item.optimalStock), 0)}
               </p>
             </div>
           </CardContent>
@@ -277,12 +296,12 @@ export default function InventoryManagement() {
       apiEndpoint="inventory-optimization"
       allowedFileTypes={['.xlsx', '.xls', '.csv']}
       tableName="inventory_recommendations"
-      inputSection={<InputSection onFileProcessed={() => {}} />}
-      mappingSection={<MappingSection data={null} onMapped={() => {}} />}
-      visualizationSection={<VisualizationSection result={null} />}
-      onCustomProcess={async (data) => {
+      inputSection={<InputSection onFileProcessed={handleFileProcessed} />}
+      mappingSection={<MappingSection data={data.input} onMapped={handleDataMapped} />}
+      visualizationSection={<VisualizationSection result={data.result} />}
+      onCustomProcess={async (mappedData) => {
         // Type assertion for the data
-        const typedData = data as MappedData;
+        const typedData = mappedData as MappedData;
         
         // In a real implementation, this would call the DeepSeek API
         // For now, we'll simulate a response
@@ -310,6 +329,7 @@ export default function InventoryManagement() {
           };
         });
         
+        setData(prev => ({ ...prev, result: recommendations }));
         return recommendations;
       }}
     />

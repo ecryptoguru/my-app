@@ -140,26 +140,26 @@ export default function FeaturePage({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-5 mb-8">
-          <TabsTrigger value="input" className="flex items-center gap-2">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
+          <TabsTrigger value="input" className="flex items-center gap-2" aria-label="Input tab">
             <FileText className="h-4 w-4" />
-            <span>Input</span>
+            <span className="hidden sm:inline">Input</span>
           </TabsTrigger>
-          <TabsTrigger value="mapping" disabled={!data.input} className="flex items-center gap-2">
+          <TabsTrigger value="mapping" disabled={!data.input} className="flex items-center gap-2" aria-label="Mapping tab">
             <FileText className="h-4 w-4" />
-            <span>Mapping</span>
+            <span className="hidden sm:inline">Mapping</span>
           </TabsTrigger>
-          <TabsTrigger value="processing" disabled={!data.mapped} className="flex items-center gap-2">
+          <TabsTrigger value="processing" disabled={!data.mapped} className="flex items-center gap-2" aria-label="Processing tab">
             <Loader2 className="h-4 w-4" />
-            <span>Processing</span>
+            <span className="hidden sm:inline">Processing</span>
           </TabsTrigger>
-          <TabsTrigger value="visualization" disabled={!data.result} className="flex items-center gap-2">
+          <TabsTrigger value="visualization" disabled={!data.result} className="flex items-center gap-2" aria-label="Visualization tab">
             <BarChart className="h-4 w-4" />
-            <span>Visualization</span>
+            <span className="hidden sm:inline">Visualization</span>
           </TabsTrigger>
-          <TabsTrigger value="storage" disabled={!data.result} className="flex items-center gap-2">
+          <TabsTrigger value="storage" disabled={!data.result} className="flex items-center gap-2" aria-label="Storage tab">
             <Database className="h-4 w-4" />
-            <span>Storage</span>
+            <span className="hidden sm:inline">Storage</span>
           </TabsTrigger>
         </TabsList>
 

@@ -10,8 +10,7 @@ import { supabase } from '@/lib/supabase';
 
 // Import file parsing libraries
 import * as XLSX from 'xlsx';
-// We need to import pdfjs in a special way for Next.js
-import * as pdfjs from 'pdfjs-dist';
+// We'll use dynamic import for PDF.js
 
 // Define the props interface
 interface FileUploadProps {
@@ -126,7 +125,20 @@ export default function FileUpload({
   const parsePDF = async (file: File): Promise<string> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      // Using pdfjs directly as imported at the top
+      
+      // Only import and use PDF.js on the client side
+      if (typeof window === 'undefined') {
+        throw new Error('PDF parsing can only be done in the browser');
+      }
+      
+      // Dynamic import of PDF.js
+      const pdfjs = await import('pdfjs-dist');
+      
+      // Set the worker source
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+      }
+      
       const pdf = await pdfjs.getDocument(new Uint8Array(arrayBuffer)).promise;
       
       let fullText = '';

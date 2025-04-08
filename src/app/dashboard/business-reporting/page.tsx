@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import FeaturePage from '@/components/FeaturePage';
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Download } from 'lucide-react';
+import ReportGenerator from '@/components/ReportGenerator';
 
 // Define types for our data
 interface BusinessData {
@@ -49,9 +49,24 @@ interface BusinessReport {
   }>;
 }
 
+interface DataState {
+  input: BusinessData[] | null;
+  mapped: MappedData | null;
+  result: BusinessReport | null;
+}
+
 export default function BusinessReporting() {
   const { status } = useSession();
   const router = useRouter();
+  const [data, setData] = useState<DataState>({
+    input: null,
+    mapped: null,
+    result: null,
+  });
+
+  // Refs for PDF generation
+  const chartRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -69,8 +84,16 @@ export default function BusinessReporting() {
     );
   }
 
+  const handleFileProcessed = (inputData: BusinessData[]) => {
+    setData(prev => ({ ...prev, input: inputData }));
+  };
+
+  const handleDataMapped = (mappedData: MappedData) => {
+    setData(prev => ({ ...prev, mapped: mappedData }));
+  };
+
   // Custom input component for manual data entry
-  const InputSection = ({ onFileProcessed }: { onFileProcessed: (data: unknown, url: string) => void }) => {
+  const InputSection = ({ onFileProcessed }: { onFileProcessed: (data: BusinessData[]) => void }) => {
     const [entries, setEntries] = useState<BusinessData[]>([
       { date: '2025-01-01', sales: 10000, expenses: 6000, profit: 4000 },
       { date: '2025-02-01', sales: 12000, expenses: 7000, profit: 5000 },
@@ -104,7 +127,7 @@ export default function BusinessReporting() {
     };
 
     const handleSubmit = () => {
-      onFileProcessed(entries, '');
+      onFileProcessed(entries);
     };
 
     return (
@@ -189,14 +212,16 @@ export default function BusinessReporting() {
   };
 
   // Custom mapping component for business reporting
-  const MappingSection = ({ data, onMapped }: { data: unknown, onMapped: (data: MappedData) => void }) => {
+  const MappingSection = ({ data, onMapped }: { data: BusinessData[] | null, onMapped: (data: MappedData) => void }) => {
     const [aggregation, setAggregation] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
     const [reportType, setReportType] = useState<'summary' | 'detailed'>('detailed');
     
     const handleMapping = () => {
       // Create a mapped data object with the necessary parameters
+      if (!data) return;
+      
       const mappedDataObj: MappedData = {
-        businessData: data as BusinessData[],
+        businessData: data,
         aggregation,
         reportType
       };
@@ -306,113 +331,115 @@ export default function BusinessReporting() {
       }).format(value / 100);
     };
 
-    const handleDownloadPDF = () => {
-      alert('PDF download functionality would be implemented here using jsPDF as specified in Prompt 9.');
-    };
-    
     return (
       <div className="space-y-6">
         <div className="flex justify-end">
-          <Button onClick={handleDownloadPDF} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Download PDF Report
-          </Button>
+          <ReportGenerator
+            title="Business Performance Report"
+            filename="business-performance-report"
+            chartRef={chartRef}
+            tableRef={tableRef}
+            orientation="landscape"
+          />
         </div>
         
         <Card>
           <CardHeader>
             <CardTitle>Business Performance Summary</CardTitle>
             <CardDescription>
-              Key metrics and performance indicators
+              Key metrics and visualizations based on your data
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-700">Total Sales</h4>
-                <p className="text-2xl font-bold">{formatCurrency(result.summary.totalSales)}</p>
-                <p className="text-sm text-blue-600">
-                  {result.summary.salesGrowth >= 0 ? '↑' : '↓'} {formatPercentage(Math.abs(result.summary.salesGrowth))} from previous period
-                </p>
-              </div>
-              
-              <div className="p-4 bg-red-50 rounded-lg">
-                <h4 className="text-sm font-medium text-red-700">Total Expenses</h4>
-                <p className="text-2xl font-bold">{formatCurrency(result.summary.totalExpenses)}</p>
-                <p className="text-sm text-red-600">
-                  {result.summary.expenseGrowth >= 0 ? '↑' : '↓'} {formatPercentage(Math.abs(result.summary.expenseGrowth))} from previous period
-                </p>
-              </div>
-              
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="text-sm font-medium text-green-700">Total Profit</h4>
-                <p className="text-2xl font-bold">{formatCurrency(result.summary.totalProfit)}</p>
-                <p className="text-sm text-green-600">
-                  Margin: {formatPercentage(result.summary.profitMargin)}
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-8">
-              <div>
-                <h4 className="font-medium mb-4">Sales and Expenses Trend</h4>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={result.monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
-                      <Legend />
-                      <Line type="monotone" dataKey="sales" name="Sales" stroke="#3b82f6" strokeWidth={2} />
-                      <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2} />
-                      <Line type="monotone" dataKey="profit" name="Profit" stroke="#10b981" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-muted-foreground">Total Sales</span>
+                        <span className="text-2xl font-bold">{formatCurrency(result.summary.totalSales)}</span>
+                        <span className={`text-xs ${result.summary.salesGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {result.summary.salesGrowth >= 0 ? '↑' : '↓'} {Math.abs(result.summary.salesGrowth).toFixed(1)}%
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-muted-foreground">Total Profit</span>
+                        <span className="text-2xl font-bold">{formatCurrency(result.summary.totalProfit)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatPercentage(result.summary.profitMargin)} margin
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-4" id="sales-trend-chart">Sales Trend</h4>
+                  <div className="h-80 w-full" ref={chartRef} aria-labelledby="sales-trend-chart">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={result.monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
+                        <Legend />
+                        <Line type="monotone" dataKey="sales" name="Sales" stroke="#3b82f6" activeDot={{ r: 8 }} />
+                        <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" />
+                        <Line type="monotone" dataKey="profit" name="Profit" stroke="#10b981" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-4" id="top-performing-chart">Top Performing Periods</h4>
+                  <div className="h-80 w-full" aria-labelledby="top-performing-chart">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={result.topPerformingPeriods}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
+                        <Legend />
+                        <Bar dataKey="sales" name="Sales" fill="#3b82f6" />
+                        <Bar dataKey="profit" name="Profit" fill="#10b981" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
               
               <div>
-                <h4 className="font-medium mb-4">Top Performing Periods</h4>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={result.topPerformingPeriods}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
-                      <Legend />
-                      <Bar dataKey="sales" name="Sales" fill="#3b82f6" />
-                      <Bar dataKey="profit" name="Profit" fill="#10b981" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-4">Monthly Performance</h4>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Sales</TableHead>
-                      <TableHead>Expenses</TableHead>
-                      <TableHead>Profit</TableHead>
-                      <TableHead>Margin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {result.monthlyData.map((month, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{month.month}</TableCell>
-                        <TableCell>{formatCurrency(month.sales)}</TableCell>
-                        <TableCell>{formatCurrency(month.expenses)}</TableCell>
-                        <TableCell>{formatCurrency(month.profit)}</TableCell>
-                        <TableCell>{formatPercentage((month.profit / month.sales) * 100)}</TableCell>
+                <h4 className="font-medium mb-4" id="monthly-performance-table">Monthly Performance</h4>
+                <div className="overflow-x-auto">
+                  <Table ref={tableRef} aria-labelledby="monthly-performance-table">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Month</TableHead>
+                        <TableHead>Sales</TableHead>
+                        <TableHead>Expenses</TableHead>
+                        <TableHead>Profit</TableHead>
+                        <TableHead>Margin</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {result.monthlyData.map((month, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{month.month}</TableCell>
+                          <TableCell>{formatCurrency(month.sales)}</TableCell>
+                          <TableCell>{formatCurrency(month.expenses)}</TableCell>
+                          <TableCell>{formatCurrency(month.profit)}</TableCell>
+                          <TableCell>{formatPercentage((month.profit / month.sales) * 100)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -428,12 +455,12 @@ export default function BusinessReporting() {
       apiEndpoint="business-analytics"
       allowedFileTypes={['.xlsx', '.xls', '.csv']}
       tableName="business_reports"
-      inputSection={<InputSection onFileProcessed={() => {}} />}
-      mappingSection={<MappingSection data={null} onMapped={() => {}} />}
-      visualizationSection={<VisualizationSection result={null} />}
-      onCustomProcess={async (data) => {
+      inputSection={<InputSection onFileProcessed={handleFileProcessed} />}
+      mappingSection={<MappingSection data={data.input} onMapped={handleDataMapped} />}
+      visualizationSection={<VisualizationSection result={data.result} />}
+      onCustomProcess={async (mappedData) => {
         // Type assertion for the data
-        const typedData = data as MappedData;
+        const typedData = mappedData as MappedData;
         
         // In a real implementation, this would call the DeepSeek API
         // For now, we'll simulate a response
@@ -491,7 +518,7 @@ export default function BusinessReporting() {
             profit: period.profit
           }));
         
-        return {
+        const result = {
           summary: {
             totalSales,
             totalExpenses,
@@ -503,6 +530,9 @@ export default function BusinessReporting() {
           monthlyData: monthlyDataArray,
           topPerformingPeriods
         };
+        
+        setData(prev => ({ ...prev, result }));
+        return result;
       }}
     />
   );
